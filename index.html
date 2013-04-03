@@ -1,0 +1,100 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <title>WebSockets</title>
+        <script type="text/javascript" src="gateway.js"></script>
+    </head>
+    <body>
+        <input type="text" id="addedAccessPoint"> access point to add
+        <input type="button" id="addAccessPoint" value="add access point" />
+        <br/>
+
+        <b id="currentAccessPoint"></b>
+        <input type="button" id="back" value="back" />
+        <input type="button" id="forward" value="forward" />
+        <br/>
+
+        <input type="button" id="setConnection" value="set connection" />
+        <br/>
+
+        <input type="text" id="readBufferSize"> read buffer size(bytes)
+        <input type="button" id="readButton" value="send read" />
+        <br/>
+
+        <input type="text" id="buffer"> buffer size(bytes)
+        <br/>
+        <input type="file" id="file"/>
+        <input type="button" id="sendFile" value="send array" />
+
+        <div id="output"></div>
+        <script type="text/javascript">
+            window.onload = function() {
+                var currentAccessPoint = document.getElementById('currentAccessPoint');
+                currentAccessPoint.innerText = gateway.getCurrentAccessPoint();
+
+                var output = document.getElementById('output');
+
+                var addedAccessPoint = document.getElementById('addedAccessPoint');
+                var addAccessPointButton = document.getElementById('addAccessPoint');
+                addAccessPointButton.onclick = function() {
+                    gateway.addAccessPoint(addedAccessPoint.value);
+                }
+
+                var backButton = document.getElementById('back');
+                backButton.onclick = function() {
+                    gateway.changeAccessPoint('back');
+                    currentAccessPoint.innerText = gateway.getCurrentAccessPoint();
+                }
+
+                var forwardButton = document.getElementById('forward');
+                forwardButton.onclick = function() {
+                    gateway.changeAccessPoint('forward');
+                    currentAccessPoint.innerText = gateway.getCurrentAccessPoint();
+                }
+
+                 var setConectionButton = document.getElementById('setConnection');
+                 setConectionButton.onclick = function() {
+                    var receivedData;
+                    var isRead = false;
+                    var address = currentAccessPoint.innerText;
+                    gateway.connectAccessPoint(address, function(message) {
+                            if(message === 'start') {
+                                receivedData = null;
+                            } else if(message === 'end') {
+                                output.innerText += receivedData + '\n';
+                            } else if(message === 'read') {
+                                isRead = true;
+                            } else {
+                                if(!isRead) {
+                                    output.innerText += 'Chunk:' + message.length + '\n';
+                                    if(receivedData) {
+                                        receivedData += message;
+                                    } else {
+                                        receivedData = message;
+                                    }
+                                } else {
+                                    gateway.setMaxWriteBuffer(parseInt(message));
+                                    isRead = false;
+                                }
+                            }
+                        }, function(event) {
+                            alert('Error ' + event.data);
+                        });
+                 }
+
+                 var sendButton = document.getElementById('sendFile');
+                 sendButton.onclick = function() {
+                     var array = document.getElementById('file').files[0];
+                     var buffer = parseInt(document.getElementById('buffer').value);
+                     gateway.write(array, buffer);
+                 }
+
+                var readButton = document.getElementById('readButton');
+                readButton.onclick = function() {
+                    var readBufferSize = parseInt(document.getElementById('readBufferSize').value);
+                    gateway.read(readBufferSize);
+                }
+            }
+        </script>
+    </body>
+</html>
