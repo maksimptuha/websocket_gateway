@@ -17,11 +17,10 @@
         <input type="button" id="setConnection" value="set connection" />
         <br/>
 
-        <input type="text" id="readBufferSize"> read buffer size(bytes)
+        <input type="text" id="readBufferSize"> read max size(bytes)
         <input type="button" id="readButton" value="send read" />
         <br/>
 
-        <input type="text" id="buffer"> buffer size(bytes)
         <br/>
         <input type="file" id="file"/>
         <input type="button" id="sendFile" value="send array" />
@@ -29,10 +28,10 @@
         <div id="output"></div>
         <script type="text/javascript">
             window.onload = function() {
+                var output = document.getElementById('output');
+
                 var currentAccessPoint = document.getElementById('currentAccessPoint');
                 currentAccessPoint.innerText = gateway.getCurrentAccessPoint();
-
-                var output = document.getElementById('output');
 
                 var addedAccessPoint = document.getElementById('addedAccessPoint');
                 var addAccessPointButton = document.getElementById('addAccessPoint');
@@ -52,47 +51,21 @@
                     currentAccessPoint.innerText = gateway.getCurrentAccessPoint();
                 }
 
-                 var setConectionButton = document.getElementById('setConnection');
-                 setConectionButton.onclick = function() {
-                    var receivedData;
-                    var isRead = false;
-                    var address = currentAccessPoint.innerText;
-                    gateway.connectAccessPoint(address, function(message) {
-                            if(message === 'start') {
-                                receivedData = null;
-                            } else if(message === 'end') {
-                                output.innerText += receivedData + '\n';
-                            } else if(message === 'read') {
-                                isRead = true;
-                            } else {
-                                if(!isRead) {
-                                    output.innerText += 'Chunk:' + message.length + '\n';
-                                    if(receivedData) {
-                                        receivedData += message;
-                                    } else {
-                                        receivedData = message;
-                                    }
-                                } else {
-                                    gateway.setMaxWriteBuffer(parseInt(message));
-                                    isRead = false;
-                                }
-                            }
-                        }, function(event) {
-                            alert('Error ' + event.data);
-                        });
-                 }
-
-                 var sendButton = document.getElementById('sendFile');
-                 sendButton.onclick = function() {
-                     var array = document.getElementById('file').files[0];
-                     var buffer = parseInt(document.getElementById('buffer').value);
-                     gateway.write(array, buffer);
+                 var setConnectionButton = document.getElementById('setConnection');
+                 setConnectionButton.onclick = function() {
+                    gateway.connectAccessPoint(output);
                  }
 
                 var readButton = document.getElementById('readButton');
                 readButton.onclick = function() {
                     var readBufferSize = parseInt(document.getElementById('readBufferSize').value);
                     gateway.read(readBufferSize);
+                }
+
+                var sendButton = document.getElementById('sendFile');
+                sendButton.onclick = function() {
+                    var array = document.getElementById('file').files[0];
+                    gateway.write(array);
                 }
             }
         </script>

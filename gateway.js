@@ -1,8 +1,10 @@
 var gateway = (function(gateway) {
-    this.accessPoints = ['ws://localhost:8888'];
-    this.currentAccessPoint = this.accessPoints[0];
-    this.webSocket;
-    this.maxWriteBuffer = 0;
+    var accessPoints = ['ws://localhost:8888'];
+    var currentAccessPoint = accessPoints[0];
+    var webSocket;
+
+    var maxWriteSize = 0;
+    var isRead = false;
 
     gateway.getCurrentAccessPoint = function() {
         return currentAccessPoint;
@@ -31,16 +33,6 @@ var gateway = (function(gateway) {
         }
     }
 
-    gateway.connectAccessPoint = function(address, onmessage, onerror) {
-        if(typeof(WebSocket) == 'undefined') {
-            alert('Your browser does not support WebSockets.');
-        } else {
-            webSocket = new WebSocket(address);
-            webSocket.onmessage = onmessage;
-            webSocket.onerror = onerror;
-        }
-    }
-
     gateway.disconnect = function() {
         webSocket.close();
     }
@@ -49,47 +41,65 @@ var gateway = (function(gateway) {
         return webSocket.readyState == 1 ? true : false;
     }
 
-    gateway.read = function(arraySize) {
-        webSocket.send('read');
-        webSocket.send(arraySize);
+    gateway.connectAccessPoint = function(output) {
+        if(typeof(WebSocket) == 'undefined') {
+            alert('Your browser does not support WebSockets.');
+        } else {
+            webSocket = new WebSocket(currentAccessPoint);
+
+            webSocket.onmessage = function(event) {
+                if(event.data === 'read') {
+                    isRead = true;
+                } else {
+                    if(!isRead) {
+                        output.innerText += event.data + '\n';
+                    } else {
+                        maxWriteSize = parseInt(event.data);
+                    }
+                }
+            };
+
+            webSocket.onerror = function(event) {
+                alert('Error ' + event.data);
+            };
+        }
     }
 
-    gateway.write = function(array, buffer) {
+    gateway.read = function(maxArraySize) {
+        if(!this.isConnected()) {
+            alert('There is no connection.');
+            return;
+        }
+
+        if(isNaN(maxArraySize)) {
+            alert('Read max size is not a number.');
+            return;
+        }
+
+        webSocket.send('read');
+        webSocket.send(maxArraySize);
+    }
+
+    gateway.write = function(array) {
         if(!array) {
             alert('Array is not set.');
             return;
         }
 
-        if(!buffer) {
-            alert('Buffer is not set.');
-            return;
-        }
-
-        if(maxWriteBuffer === 0) {
-            alert('There is no read request.');
-            return;
-        }
-
-        if(buffer > maxWriteBuffer) {
-            alert('Buffer is bigger than server can receive.');
-            return;
-        }
-
-        if(!webSocket || webSocket.readyState == 3) {
+        if(!this.isConnected()) {
             alert('There is no connection.');
             return;
         }
 
-        webSocket.send('start');
-        for(var start = 0; start <= array.size; start += buffer) {
-            var chunk = array.slice(start, start + buffer);
-            webSocket.send(chunk);
+        if(!isRead) {
+            alert('There is no read request.');
+            return;
         }
-        webSocket.send('end');
-    }
 
-    gateway.setMaxWriteBuffer = function(size) {
-        maxWriteBuffer = size;
+        webSocket.send(array.slice(0, maxWriteSize));
+
+        isRead = false;
+        maxWriteSize = 0;
     }
 
     return gateway;
