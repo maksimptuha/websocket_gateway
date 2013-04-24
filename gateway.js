@@ -1,10 +1,17 @@
 var gateway = (function(gateway) {
     var accessPoints = ['ws://localhost:8888'];
     var currentAccessPoint = accessPoints[0];
-    var webSocket;
 
-    var maxWriteSize = 0;
+    var receiveArray;
+    var sendArray;
+
+    var webSocket;
     var isRead = false;
+    var maxWriteSize = 0;
+
+    gateway.setSendArray = function(array) {
+        sendArray = array;
+    }
 
     gateway.getCurrentAccessPoint = function() {
         return currentAccessPoint;
@@ -41,21 +48,27 @@ var gateway = (function(gateway) {
         return webSocket.readyState == 1 ? true : false;
     }
 
-    gateway.connectAccessPoint = function(output) {
+    gateway.connectAccessPoint = function(output, sendFile) {
+        if(sendFile == undefined) {
+            alert('Send file is not set.')
+            return;
+        } else {
+            sendArray = sendFile;
+        }
+
         if(typeof(WebSocket) == 'undefined') {
             alert('Your browser does not support WebSockets.');
         } else {
             webSocket = new WebSocket(currentAccessPoint);
 
             webSocket.onmessage = function(event) {
-                if(event.data === 'read') {
+
+                if(event.data.split(' ')[0] === 'read') {
                     isRead = true;
+                    maxWriteSize = parseInt(event.data.split(' ')[1]);
                 } else {
-                    if(!isRead) {
-                        output.innerText += event.data + '\n';
-                    } else {
-                        maxWriteSize = parseInt(event.data);
-                    }
+                    output.innerText += event.data + '\n';
+                    receiveArray += event.data;
                 }
             };
 
@@ -76,16 +89,10 @@ var gateway = (function(gateway) {
             return;
         }
 
-        webSocket.send('read');
-        webSocket.send(maxArraySize);
+        webSocket.send('read ' + maxArraySize);
     }
 
-    gateway.write = function(array) {
-        if(!array) {
-            alert('Array is not set.');
-            return;
-        }
-
+    gateway.write = function() {
         if(!this.isConnected()) {
             alert('There is no connection.');
             return;
@@ -96,8 +103,8 @@ var gateway = (function(gateway) {
             return;
         }
 
-        webSocket.send(array.slice(0, maxWriteSize));
-
+        webSocket.send(sendArray.slice(0, maxWriteSize));
+        sendArray = sendArray.substring(maxWriteSize, sendArray.length);
         isRead = false;
         maxWriteSize = 0;
     }

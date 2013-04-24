@@ -14,6 +14,9 @@
         <input type="button" id="forward" value="forward" />
         <br/>
 
+        <input type="file" id="file" />
+        <br/>
+
         <input type="button" id="setConnection" value="set connection" />
         <br/>
 
@@ -22,7 +25,6 @@
         <br/>
 
         <br/>
-        <input type="file" id="file"/>
         <input type="button" id="sendFile" value="send array" />
 
         <div id="output"></div>
@@ -53,7 +55,12 @@
 
                  var setConnectionButton = document.getElementById('setConnection');
                  setConnectionButton.onclick = function() {
-                    gateway.connectAccessPoint(output);
+                    var sendFile = document.getElementById('file').files[0];
+                    var reader = new FileReader();
+                    reader.onload = function(event) {
+                        gateway.connectAccessPoint(output, event.target.result);
+                    }
+                    reader.readAsText(sendFile);
                  }
 
                 var readButton = document.getElementById('readButton');
@@ -64,8 +71,7 @@
 
                 var sendButton = document.getElementById('sendFile');
                 sendButton.onclick = function() {
-                    var array = document.getElementById('file').files[0];
-                    gateway.write(array);
+                    gateway.write();
                 }
             }
         </script>

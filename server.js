@@ -3,50 +3,62 @@ var fileSystem = require('fs');
 
 var webSocketServer = new WebSocketServer.Server({port: 8888});
 
-var maxWriteSize;
-var isRead = false;
+var sendArray = fileSystem.readFileSync("1.txt", "utf8");
+var receiveArray;
+var clients =[];
 
-var connectedWebSocket;
+webSocketServer.on('connection', function(webSocket) {
+    clients.push({
+        ws : webSocket,
+        isRead : false,
+        maxWriteSize : 0
+    });
 
-webSocketServer.on('connection', function(ws) {
-    connectedWebSocket = ws;
+    webSocket.on('message', function(message) {
 
-    read('50');
+        var client = getClient(webSocket);
 
-    ws.on('message', function(message) {
-        if(message === 'read') {
-            isRead = true;
+        if(message.split(' ')[0] === 'read') {
+            client.isRead = true;
+            client.maxWriteSize = parseInt(message.split(' ')[1]);
+            write(client);
         } else {
-            if(!isRead) {
-                console.log(String(message));
-            } else {
-                maxWriteSize = parseInt(message);
+            receiveArray += message;
+            console.log(message);
+        }
+    });
 
-                write();
+    webSocket.on('close', function() {
+        for(var i = 0; i < clients.length; i++) {
+            if(clients[i].ws === webSocket) {
+                clients.splice(i, 1);
             }
         }
     });
+
+    read(getClient(webSocket), '13');
 });
 
-function read(maxArraySize) {
-    connectedWebSocket.send('read');
-    connectedWebSocket.send(maxArraySize);
+function getClient(webSocket) {
+    for(var i = 0; i < clients.length; i++) {
+        if(clients[i].ws === webSocket) {
+            return clients[i];
+        }
+    }
 }
 
-function write() {
-    if(!isRead) {
+function read(client, maxArraySize) {
+    client.ws.send('read ' + maxArraySize);
+}
+
+function write(client) {
+    if(!client.isRead) {
         console.log('There is no read request.');
         return;
     }
 
-    fileSystem.readFile('jquery.txt', 'utf8', function (err, data) {
-        if (err) {
-            console.log(err);
-        }
-
-        connectedWebSocket.send(data.slice(0, maxWriteSize));
-
-        isRead = false
-        maxWriteSize = 0;
-    });
+    client.ws.send(sendArray.slice(0, client.maxWriteSize));
+    sendArray = sendArray.substring(client.maxWriteSize, sendArray.length);
+    client.isRead = false;
+    client.maxWriteSize = 0;
 };
