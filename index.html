@@ -23,12 +23,13 @@
         <input type="button" id="addSendArray" value="add to send array" />
         <br/>
 
-        <input type="text" id="readBufferSize"> read max size(bytes)
+        <input type="text" id="readBufferSize"> read size(bytes)
         <input type="button" id="readButton" value="send read" />
         <br/>
 
+        <input type="text" id="writeBufferSize"> write size(bytes)
+        <input type="button" id="writeButton" value="send write" />
         <br/>
-        <input type="button" id="sendFile" value="send array" />
 
         <div id="output"></div>
         <script type="text/javascript">
@@ -82,9 +83,10 @@
                     gateway.read(readBufferSize);
                 }
 
-                var sendButton = document.getElementById('sendFile');
-                sendButton.onclick = function() {
-                    gateway.write();
+                var writeButton = document.getElementById('writeButton');
+                writeButton.onclick = function() {
+                    var writeBufferSize = parseInt(document.getElementById('writeBufferSize').value);
+                    gateway.write(writeBufferSize);
                 }
             }
         </script>

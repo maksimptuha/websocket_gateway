@@ -2,15 +2,29 @@ var gateway = (function(gateway) {
     var accessPoints = ['ws://localhost:8888'];
     var currentAccessPoint = accessPoints[0];
 
-    var receiveArray;
-    var sendArray;
+    var receiveArray = [];
+    var sendArray = [];
 
-    //var readQueue = 0;
-    //var writeQueue;
+    var readQueue = 0;
+    var writeQueue = 0;
 
     var webSocket;
-    var isRead = false;
-    var maxWriteSize = 0;
+
+    function stringToByte(str) {
+        var bytes = [];
+        for (var i = 0; i < str.length; i++) {
+            bytes.push(str.charCodeAt(i));
+        }
+        return bytes;
+    }
+
+    function byteToString(bytes) {
+        var str = "";
+        for (var i = 0; i < bytes.length; i++) {
+            str += String.fromCharCode(parseInt(bytes[i]));
+        }
+        return str;
+    }
 
     gateway.setSendArray = function(array) {
         sendArray = array;
@@ -56,7 +70,7 @@ var gateway = (function(gateway) {
             alert('Send file is not set.')
             return;
         } else {
-            sendArray = sendFile;
+            sendArray = stringToByte(sendFile);
         }
 
         if(typeof(WebSocket) == 'undefined') {
@@ -65,13 +79,13 @@ var gateway = (function(gateway) {
             webSocket = new WebSocket(currentAccessPoint);
 
             webSocket.onmessage = function(event) {
-
                 if(event.data.split(' ')[0] === 'read') {
-                    isRead = true;
-                    maxWriteSize = parseInt(event.data.split(' ')[1]);
+                    readQueue += parseInt(event.data.split(' ')[1]);
                 } else {
-                    output.innerText += event.data + '\n';
-                    receiveArray += event.data;
+                    if(event.data !== '') {
+                        output.innerText += event.data + '\n';
+                        receiveArray += byteToString(event.data);
+                    }
                 }
             };
 
@@ -95,25 +109,73 @@ var gateway = (function(gateway) {
         webSocket.send('read ' + maxArraySize);
     }
 
-    gateway.write = function() {
+    gateway.write = function(writeSize) {
         if(!this.isConnected()) {
             alert('There is no connection.');
             return;
         }
 
-        if(!isRead) {
-            alert('There is no read request.');
+        writeQueue += writeSize;
+
+        if(sendArray.length === 0) {
             return;
         }
 
-        webSocket.send(sendArray.slice(0, maxWriteSize));
-        sendArray = sendArray.substring(maxWriteSize, sendArray.length);
-        isRead = false;
-        maxWriteSize = 0;
+        if(writeQueue > readQueue) {
+            if(readQueue > sendArray.length) {
+                webSocket.send(byteToString(sendArray));
+                readQueue -= sendArray.length;
+                writeQueue -= sendArray.length;
+                sendArray = [];
+            } else {
+                webSocket.send(byteToString(sendArray.slice(0, readQueue)));
+                sendArray = sendArray.splice(readQueue, sendArray.length);
+                writeQueue -= readQueue;
+                readQueue = 0;
+            }
+        } else {
+            if(writeQueue > sendArray.length) {
+                webSocket.send(byteToString(sendArray));
+                writeQueue -= sendArray.length;
+                readQueue -= sendArray.length;
+                sendArray = [];
+            } else {
+                webSocket.send(byteToString(sendArray.slice(0, writeQueue)));
+                sendArray = sendArray.splice(writeQueue, sendArray.length);
+                readQueue -= writeQueue;
+                writeQueue = 0;
+            }
+        }
     }
 
     gateway.addSendArray = function(addArray) {
         sendArray += addArray;
+
+        if(writeQueue > readQueue) {
+            if(readQueue > sendArray.length) {
+                webSocket.send(byteToString(sendArray));
+                readQueue -= sendArray.length;
+                writeQueue -= sendArray.length;
+                sendArray = [];
+            } else {
+                webSocket.send(byteToString(sendArray.slice(0, readQueue)));
+                sendArray = sendArray.splice(readQueue, sendArray.length);
+                writeQueue -= readQueue;
+                readQueue = 0;
+            }
+        } else {
+            if(writeQueue > sendArray.length) {
+                webSocket.send(byteToString(sendArray));
+                writeQueue -= sendArray.length;
+                readQueue -= sendArray.length;
+                sendArray = [];
+            } else {
+                webSocket.send(byteToString(sendArray.slice(0, writeQueue)));
+                sendArray = sendArray.splice(writeQueue, sendArray.length);
+                readQueue -= writeQueue;
+                writeQueue = 0;
+            }
+        }
     }
 
     return gateway;

@@ -3,15 +3,15 @@ var fileSystem = require('fs');
 
 var webSocketServer = new WebSocketServer.Server({port: 8888});
 
-var sendArray = fileSystem.readFileSync("1.txt", "utf8");
+var sendArray = stringToByte(fileSystem.readFileSync("1.txt", "utf8"));
 var clients =[];
 
 webSocketServer.on('connection', function(webSocket) {
     clients.push({
         ws : webSocket,
-        isRead : false,
-        maxWriteSize : 0,
-        receiveArray : ''
+        receiveArray : [],
+        readQueue : 0,
+        writeQueue : 0
     });
 
     webSocket.on('message', function(message) {
@@ -19,12 +19,13 @@ webSocketServer.on('connection', function(webSocket) {
         var client = getClient(webSocket);
 
         if(message.split(' ')[0] === 'read') {
-            client.isRead = true;
-            client.maxWriteSize = parseInt(message.split(' ')[1]);
-            write(client);
+            client.readQueue += parseInt(message.split(' ')[1]);
+            write(client, 8);
         } else {
-            client.receiveArray += message;
-            console.log(message);
+            if(message !== '') {
+                client.receiveArray += stringToByte(message);
+                console.log(message);
+            }
         }
     });
 
@@ -36,7 +37,7 @@ webSocketServer.on('connection', function(webSocket) {
         }
     });
 
-    read(getClient(webSocket), '13');
+    read(getClient(webSocket), '33');
 });
 
 function getClient(webSocket) {
@@ -47,18 +48,52 @@ function getClient(webSocket) {
     }
 }
 
-function read(client, maxArraySize) {
-    client.ws.send('read ' + maxArraySize);
+function stringToByte(str) {
+    var bytes = [];
+    for (var i = 0; i < str.length; i++) {
+        bytes.push(str.charCodeAt(i));
+    }
+    return bytes;
 }
 
-function write(client) {
-    if(!client.isRead) {
-        console.log('There is no read request.');
-        return;
+function byteToString(bytes) {
+    var str = '';
+    for (var i = 0; i < bytes.length; i++) {
+        str += String.fromCharCode(parseInt(bytes[i]));
     }
+    return str;
+}
 
-    client.ws.send(sendArray.slice(0, client.maxWriteSize));
-    sendArray = sendArray.substring(client.maxWriteSize, sendArray.length);
-    client.isRead = false;
-    client.maxWriteSize = 0;
-};
+function read(client, readSize) {
+    client.ws.send('read ' + readSize);
+}
+
+function write(client, writeSize) {
+    client.writeQueue += writeSize;
+
+    if(client.writeQueue > client.readQueue) {
+        if(client.readQueue > sendArray.length) {
+            client.ws.send(byteToString(sendArray));
+            client.readQueue -= sendArray.length;
+            client.writeQueue -= sendArray.length;
+            sendArray = [];
+        } else {
+            client.ws.send(byteToString(sendArray.slice(0, client.readQueue)));
+            sendArray = sendArray.splice(client.readQueue, sendArray.length);
+            client.writeQueue -= readQueue;
+            client.readQueue = 0;
+        }
+    } else {
+        if(client.writeQueue > sendArray.length) {
+            client.ws.send(byteToString(sendArray));
+            client.writeQueue -= sendArray.length;
+            client.readQueue -= sendArray.length;
+            sendArray = [];
+        } else {
+            client.ws.send(byteToString(sendArray.slice(0, client.writeQueue)));
+            sendArray = sendArray.splice(client.writeQueue, sendArray.length);
+            client.readQueue -= client.writeQueue;
+            client.writeQueue = 0;
+        }
+    }
+}
