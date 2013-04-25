@@ -5,6 +5,9 @@ var gateway = (function(gateway) {
     var receiveArray;
     var sendArray;
 
+    //var readQueue = 0;
+    //var writeQueue;
+
     var webSocket;
     var isRead = false;
     var maxWriteSize = 0;
@@ -107,6 +110,10 @@ var gateway = (function(gateway) {
         sendArray = sendArray.substring(maxWriteSize, sendArray.length);
         isRead = false;
         maxWriteSize = 0;
+    }
+
+    gateway.addSendArray = function(addArray) {
+        sendArray += addArray;
     }
 
     return gateway;

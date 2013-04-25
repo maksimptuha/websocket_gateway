@@ -4,14 +4,14 @@ var fileSystem = require('fs');
 var webSocketServer = new WebSocketServer.Server({port: 8888});
 
 var sendArray = fileSystem.readFileSync("1.txt", "utf8");
-var receiveArray;
 var clients =[];
 
 webSocketServer.on('connection', function(webSocket) {
     clients.push({
         ws : webSocket,
         isRead : false,
-        maxWriteSize : 0
+        maxWriteSize : 0,
+        receiveArray : ''
     });
 
     webSocket.on('message', function(message) {
@@ -23,7 +23,7 @@ webSocketServer.on('connection', function(webSocket) {
             client.maxWriteSize = parseInt(message.split(' ')[1]);
             write(client);
         } else {
-            receiveArray += message;
+            client.receiveArray += message;
             console.log(message);
         }
     });
