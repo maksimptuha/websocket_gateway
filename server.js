@@ -80,7 +80,7 @@ function write(client, writeSize) {
         } else {
             client.ws.send(byteToString(sendArray.slice(0, client.readQueue)));
             sendArray = sendArray.splice(client.readQueue, sendArray.length);
-            client.writeQueue -= readQueue;
+            client.writeQueue -= client.readQueue;
             client.readQueue = 0;
         }
     } else {
